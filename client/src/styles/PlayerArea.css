@@ -1,0 +1,161 @@
+.player-area {
+  background: rgba(255,255,255,0.1);
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  margin-top: auto;
+}
+
+.player-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.player-status {
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.player-cards h4 {
+  margin-bottom: 15px;
+}
+
+.cards-container {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.card {
+  width: 80px;
+  height: 120px;
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: all 0.3s ease;
+  border: 3px solid transparent;
+}
+
+.card:hover {
+  transform: translateY(-5px) scale(1.05);
+}
+
+.card.selected {
+  border-color: #FFD700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.card.revealed .card-front {
+  transform: rotateY(0deg);
+}
+
+.card.revealed .card-back {
+  transform: rotateY(180deg);
+}
+
+.card-front,
+.card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  font-weight: bold;
+  background: white;
+  color: #333;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.card-back {
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  transform: rotateY(180deg);
+}
+
+.drawn-card-area {
+  background: rgba(255,255,255,0.05);
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.drawn-card {
+  width: 80px;
+  height: 120px;
+  background: white;
+  color: #333;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 15px auto;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  animation: cardDraw 0.5s ease-out;
+}
+
+@keyframes cardDraw {
+  from {
+    transform: scale(0) rotate(180deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.player-actions {
+  text-align: center;
+}
+
+.draw-button {
+  font-size: 1.2em;
+  padding: 15px 30px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@media (max-width: 768px) {
+  .cards-container {
+    gap: 10px;
+  }
+  .card {
+    width: 60px;
+    height: 90px;
+    font-size: 0.9em;
+  }
+  .drawn-card {
+    width: 60px;
+    height: 90px;
+  }
+  .action-buttons {
+    flex-direction: column;
+  }
+}
+
+

@@ -1,0 +1,116 @@
+.main-menu {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.menu-header {
+  margin-bottom: 40px;
+}
+
+.menu-header h1 {
+  font-size: 3em;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.menu-header p {
+  font-size: 1.2em;
+  opacity: 0.9;
+}
+
+.username-form {
+  background: rgba(255,255,255,0.1);
+  padding: 30px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  margin-bottom: 30px;
+}
+
+.username-form input {
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  width: 250px;
+  text-align: center;
+}
+
+.menu-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-bottom: 40px;
+  width: 100%;
+  max-width: 800px;
+}
+
+.game-option {
+  background: rgba(255,255,255,0.1);
+  padding: 30px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  transition: transform 0.3s ease;
+}
+
+.game-option:hover {
+  transform: translateY(-5px);
+}
+
+.game-option h3 {
+  margin-bottom: 10px;
+  font-size: 1.5em;
+}
+
+.game-option p {
+  margin-bottom: 20px;
+  opacity: 0.9;
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.join-form input {
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.join-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.game-info {
+  background: rgba(255,255,255,0.1);
+  padding: 20px;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  max-width: 400px;
+}
+
+.game-info ul {
+  text-align: left;
+  margin-top: 10px;
+}
+
+.game-info li {
+  margin-bottom: 5px;
+  padding-left: 10px;
+}
+
+.connection-status {
+  text-align: center;
+}
+
+
