@@ -11,14 +11,30 @@ const { SocketHandler } = require('./src/socket/SocketHandler');
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS configuration for both Express and Socket.IO
+const corsOptions = {
+  origin: [
+    process.env.CLIENT_URL || 'http://localhost:3000',
+    'https://3-cards-kappa.vercel.app', // Production frontend
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST']
+    origin: corsOptions.origin,
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Supabase is initialized in the data layer (no connection needed here)
