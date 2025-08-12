@@ -49,15 +49,22 @@ class SocketHandler {
           socket.emit('error', { message: 'Player not identified' });
           return;
         }
-        const Game = require('../models/Game');
-        const game = await Game.findOne({ roomCode, status: 'waiting' });
-        if (!game) {
+        const { supabase } = require('../db/supabaseClient');
+        const { data: games, error } = await supabase
+          .from('games')
+          .select('game_id, status')
+          .eq('room_code', roomCode)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (error) throw new Error(error.message);
+        const game = games && games[0];
+        if (!game || game.status !== 'waiting') {
           socket.emit('error', { message: 'Game not found or already started' });
           return;
         }
-        const gameData = await this.gameService.joinGame(game.gameId, player.userId, player.username);
-        socket.join(game.gameId);
-        this.io.to(game.gameId).emit('player_joined', gameData);
+        const gameData = await this.gameService.joinGame(game.game_id, player.userId, player.username);
+        socket.join(game.game_id);
+        this.io.to(game.game_id).emit('player_joined', gameData);
       } catch (error) {
         socket.emit('error', { message: error.message });
       }

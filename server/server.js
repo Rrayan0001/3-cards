@@ -3,7 +3,6 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
-const mongoose = require('mongoose');
 const path = require('path');
 
 // Import services/handlers
@@ -22,18 +21,7 @@ const io = socketIo(server, {
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection (non-fatal if unavailable)
-const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/3cards';
-mongoose
-  .connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    // eslint-disable-next-line no-console
-    console.log('MongoDB connected');
-  })
-  .catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error('MongoDB connection failed:', err.message);
-  });
+// Supabase is initialized in the data layer (no connection needed here)
 
 // Initialize services
 const gameService = new GameService();

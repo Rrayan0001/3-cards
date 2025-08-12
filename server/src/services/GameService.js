@@ -1,7 +1,6 @@
-const Game = require('../models/Game');
-const User = require('../models/User');
 const { createDeck, shuffleDeck, calculateScore, getPowerCardEffect } = require('../../../shared/gameLogic');
 const { v4: uuidv4 } = require('uuid');
+const { supabase } = require('../db/supabaseClient');
 
 class GameService {
   constructor() {
@@ -11,81 +10,108 @@ class GameService {
 
   async createGame(hostId, hostUsername, roomCode) {
     const gameId = uuidv4();
-    const deck = this.createGameDeck(1);
+    const deck = shuffleDeck(this.createGameDeck(1));
 
-    const gameData = {
-      gameId,
-      roomCode,
-      players: [
-        {
-          id: hostId,
-          username: hostUsername,
-          cards: ['hidden', 'hidden', 'hidden'],
-          score: 0,
-          isActive: true,
-          hasInitialPeek: false
-        }
-      ],
-      deck: shuffleDeck(deck),
-      discardPile: [],
-      currentTurn: hostId,
-      status: 'waiting'
+    const gameRow = {
+      game_id: gameId,
+      room_code: roomCode,
+      deck,
+      discard_pile: [],
+      current_turn: hostId,
+      status: 'waiting',
+      max_players: 6,
+      turn_time_limit: 45000
     };
 
-    const game = new Game(gameData);
-    await game.save();
-    this.activeGames.set(gameId, gameData);
+    const { error: gameErr } = await supabase.from('games').insert(gameRow);
+    if (gameErr) throw new Error(gameErr.message);
 
+    const { error: playerErr } = await supabase.from('game_players').insert({
+      game_id: gameId,
+      player_id: hostId,
+      username: hostUsername,
+      cards: ['hidden', 'hidden', 'hidden'],
+      score: 0,
+      is_active: true,
+      has_initial_peek: false
+    });
+    if (playerErr) throw new Error(playerErr.message);
+
+    const gameData = await this.loadGameAggregate(gameId);
+    this.activeGames.set(gameId, gameData);
     return gameData;
   }
 
   async joinGame(gameId, playerId, playerUsername) {
-    const game = await Game.findOne({ gameId });
-    if (!game) throw new Error('Game not found');
+    const { data: gameRows, error: gErr } = await supabase
+      .from('games')
+      .select('game_id, status, max_players')
+      .eq('game_id', gameId)
+      .limit(1);
+    if (gErr) throw new Error(gErr.message);
+    if (!gameRows || gameRows.length === 0) throw new Error('Game not found');
+    const game = gameRows[0];
     if (game.status !== 'waiting') throw new Error('Game already started');
-    if (game.players.length >= 6) throw new Error('Game is full');
 
-    const newPlayer = {
-      id: playerId,
+    const { count, error: cErr } = await supabase
+      .from('game_players')
+      .select('*', { count: 'exact', head: true })
+      .eq('game_id', gameId);
+    if (cErr) throw new Error(cErr.message);
+    if ((count || 0) >= (game.max_players || 6)) throw new Error('Game is full');
+
+    const { error: insErr } = await supabase.from('game_players').insert({
+      game_id: gameId,
+      player_id: playerId,
       username: playerUsername,
       cards: ['hidden', 'hidden', 'hidden'],
       score: 0,
-      isActive: true,
-      hasInitialPeek: false
-    };
+      is_active: true,
+      has_initial_peek: false
+    });
+    if (insErr) throw new Error(insErr.message);
 
-    game.players.push(newPlayer);
-    await game.save();
-
-    const gameData = this.activeGames.get(gameId) || game.toObject();
-    gameData.players = game.players;
+    const gameData = await this.loadGameAggregate(gameId);
     this.activeGames.set(gameId, gameData);
-
     return gameData;
   }
 
   async startGame(gameId) {
-    const game = await Game.findOne({ gameId });
-    if (!game) throw new Error('Game not found');
-    if (game.players.length < 2) throw new Error('Need at least 2 players');
+    const { data: players, error: pErr } = await supabase
+      .from('game_players')
+      .select('player_id, username, cards')
+      .eq('game_id', gameId)
+      .order('created_at', { ascending: true });
+    if (pErr) throw new Error(pErr.message);
+    if (!players || players.length < 2) throw new Error('Need at least 2 players');
 
-    const playerCount = game.players.length;
-    const deckCount = playerCount <= 4 ? 1 : 2;
+    const deckCount = players.length <= 4 ? 1 : 2;
     const deck = shuffleDeck(this.createGameDeck(deckCount));
 
-    game.players.forEach((player) => {
-      player.cards = [deck.pop(), deck.pop(), deck.pop()];
-    });
+    const updatedPlayers = players.map((p) => ({
+      ...p,
+      cards: [deck.pop(), deck.pop(), deck.pop()]
+    }));
 
-    game.deck = deck;
-    game.status = 'in_progress';
-    game.currentTurn = game.players[0].id;
+    for (const p of updatedPlayers) {
+      // eslint-disable-next-line no-await-in-loop
+      const { error: upErr } = await supabase
+        .from('game_players')
+        .update({ cards: p.cards })
+        .eq('game_id', gameId)
+        .eq('player_id', p.player_id);
+      if (upErr) throw new Error(upErr.message);
+    }
 
-    await game.save();
+    const { error: gUpdErr } = await supabase
+      .from('games')
+      .update({ deck, status: 'in_progress', current_turn: updatedPlayers[0].player_id })
+      .eq('game_id', gameId);
+    if (gUpdErr) throw new Error(gUpdErr.message);
 
-    this.activeGames.set(gameId, game.toObject());
-
-    return game.toObject();
+    const gameData = await this.loadGameAggregate(gameId);
+    this.activeGames.set(gameId, gameData);
+    return gameData;
   }
 
   async performInitialPeek(gameId, playerId, cardIndex) {
@@ -98,10 +124,12 @@ class GameService {
 
     player.hasInitialPeek = true;
 
-    await Game.updateOne(
-      { gameId, 'players.id': playerId },
-      { $set: { 'players.$.hasInitialPeek': true } }
-    );
+    const { error: upErr } = await supabase
+      .from('game_players')
+      .update({ has_initial_peek: true })
+      .eq('game_id', gameId)
+      .eq('player_id', playerId);
+    if (upErr) throw new Error(upErr.message);
 
     return {
       cardValue: player.cards[cardIndex],
@@ -304,7 +332,32 @@ class GameService {
   }
 
   async updateGameInDatabase(gameId, gameData) {
-    await Game.findOneAndUpdate({ gameId }, gameData, { new: true });
+    // Persist aggregate to tables
+    const { error: gErr } = await supabase
+      .from('games')
+      .update({
+        deck: gameData.deck,
+        discard_pile: gameData.discardPile,
+        current_turn: gameData.currentTurn,
+        status: gameData.status,
+        winner: gameData.winner || null
+      })
+      .eq('game_id', gameId);
+    if (gErr) throw new Error(gErr.message);
+    for (const player of gameData.players) {
+      // eslint-disable-next-line no-await-in-loop
+      const { error: pErr2 } = await supabase
+        .from('game_players')
+        .update({
+          cards: player.cards,
+          score: player.score,
+          is_active: player.isActive,
+          has_initial_peek: player.hasInitialPeek
+        })
+        .eq('game_id', gameId)
+        .eq('player_id', player.id);
+      if (pErr2) throw new Error(pErr2.message);
+    }
   }
 
   async updatePlayerStats(playerId, won, score) {
@@ -321,14 +374,53 @@ class GameService {
   }
 
   async getGameStats() {
-    const totalGames = await Game.countDocuments({ status: 'ended' });
-    const activeGames = await Game.countDocuments({ status: 'in_progress' });
-    const totalUsers = await User.countDocuments();
+    const [{ data: ended, error: e1 }, { data: active, error: e2 }, { data: users, error: e3 }] = await Promise.all([
+      supabase.from('games').select('game_id', { count: 'exact', head: true }).eq('status', 'ended'),
+      supabase.from('games').select('game_id', { count: 'exact', head: true }).eq('status', 'in_progress'),
+      supabase.from('users').select('user_id', { count: 'exact', head: true })
+    ]);
+    if (e1 || e2 || e3) throw new Error((e1||e2||e3).message);
     return {
-      totalGames,
-      activeGames,
-      totalUsers,
+      totalGames: ended?.length ?? ended?.count ?? 0,
+      activeGames: active?.length ?? active?.count ?? 0,
+      totalUsers: users?.length ?? users?.count ?? 0,
       averageGameLength: '8 minutes'
+    };
+  }
+
+  async loadGameAggregate(gameId) {
+    const [{ data: gameRows, error: gErr }, { data: playerRows, error: pErr }] = await Promise.all([
+      supabase
+        .from('games')
+        .select('game_id, room_code, deck, discard_pile, current_turn, status, winner')
+        .eq('game_id', gameId)
+        .limit(1),
+      supabase
+        .from('game_players')
+        .select('player_id, username, cards, score, is_active, has_initial_peek')
+        .eq('game_id', gameId)
+        .order('created_at', { ascending: true })
+    ]);
+    if (gErr) throw new Error(gErr.message);
+    if (pErr) throw new Error(pErr.message);
+    const game = (gameRows && gameRows[0]) || null;
+    if (!game) throw new Error('Game not found');
+    return {
+      gameId: game.game_id,
+      roomCode: game.room_code,
+      players: (playerRows || []).map((p) => ({
+        id: p.player_id,
+        username: p.username,
+        cards: p.cards || [],
+        score: p.score || 0,
+        isActive: p.is_active,
+        hasInitialPeek: p.has_initial_peek
+      })),
+      deck: game.deck || [],
+      discardPile: game.discard_pile || [],
+      currentTurn: game.current_turn,
+      status: game.status,
+      winner: game.winner || null
     };
   }
 }
