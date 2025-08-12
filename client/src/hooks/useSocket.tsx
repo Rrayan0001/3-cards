@@ -27,7 +27,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   useEffect(() => {
     // Use deployed backend URL in production, localhost in development
     const serverUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://your-backend-url.railway.app' // Replace with your actual backend URL
+      ? 'https://three-cards.onrender.com' // Your actual Render backend URL
       : (process.env.REACT_APP_SERVER_URL || 'http://localhost:5000');
     
     const newSocket = io(serverUrl);
