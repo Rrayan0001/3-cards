@@ -32,7 +32,15 @@ function App() {
   };
 
   return (
-    <div className="App">
+    <div
+      className="App"
+      style={{
+        backgroundImage: `linear-gradient(to bottom right, rgba(49,5,81,0.55), rgba(24,24,24,0.22)), url(${process.env.PUBLIC_URL}/123.jpg)`,
+        backgroundPosition: 'center',
+        backgroundSize: 'cover',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       <SocketProvider>
         <GameProvider>
           {appState.screen === 'menu' ? (
