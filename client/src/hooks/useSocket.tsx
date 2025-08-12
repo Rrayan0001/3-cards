@@ -30,9 +30,20 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       ? 'https://three-cards.onrender.com' // Your actual Render backend URL
       : (process.env.REACT_APP_SERVER_URL || 'http://localhost:5000');
     
+    console.log('Connecting to Socket.IO server:', serverUrl);
+    
     const newSocket = io(serverUrl);
-    newSocket.on('connect', () => setConnected(true));
-    newSocket.on('disconnect', () => setConnected(false));
+    newSocket.on('connect', () => {
+      console.log('Connected to server!');
+      setConnected(true);
+    });
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from server');
+      setConnected(false);
+    });
+    newSocket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+    });
     setSocket(newSocket);
     return () => {
       newSocket.close();
