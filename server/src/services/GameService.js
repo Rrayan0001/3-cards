@@ -100,8 +100,33 @@ class GameService {
       return gameData;
       
     } catch (error) {
-      console.error('❌ Game creation failed:', error.message);
-      throw error;
+      console.error('❌ Database game creation failed, using local fallback:', error.message);
+      
+      // Fallback: Create game locally without database
+      const gameId = uuidv4();
+      const deck = shuffleDeck(this.createGameDeck(1));
+      
+      const gameData = {
+        gameId: gameId,
+        roomCode: roomCode,
+        players: [{
+          id: hostId,
+          username: hostUsername,
+          cards: ['hidden', 'hidden', 'hidden'],
+          score: 0,
+          isActive: true,
+          hasInitialPeek: false
+        }],
+        deck: deck,
+        discardPile: [],
+        currentTurn: hostId,
+        status: 'waiting',
+        winner: null
+      };
+
+      this.activeGames.set(gameId, gameData);
+      console.log(`🎯 Game ${gameId} created locally (database unavailable)`);
+      return gameData;
     }
   }
 
