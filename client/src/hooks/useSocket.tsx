@@ -30,22 +30,51 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       ? 'https://three-cards.onrender.com' // Your actual Render backend URL
       : (process.env.REACT_APP_SERVER_URL || 'http://localhost:5000');
     
-    console.log('Connecting to Socket.IO server:', serverUrl);
+    console.log('🔌 Connecting to Socket.IO server:', serverUrl);
+    console.log('🌍 Environment:', process.env.NODE_ENV);
     
-    const newSocket = io(serverUrl);
+    const newSocket = io(serverUrl, {
+      transports: ['websocket', 'polling'],
+      timeout: 20000,
+      forceNew: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000
+    });
+
     newSocket.on('connect', () => {
-      console.log('Connected to server!');
+      console.log('✅ Connected to server! Socket ID:', newSocket.id);
       setConnected(true);
     });
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from server');
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from server. Reason:', reason);
       setConnected(false);
     });
+
     newSocket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+      console.error('🚨 Connection error:', error);
+      setConnected(false);
     });
+
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Reconnected to server after', attemptNumber, 'attempts');
+      setConnected(true);
+    });
+
+    newSocket.on('reconnect_error', (error) => {
+      console.error('🔄 Reconnection error:', error);
+    });
+
+    newSocket.on('reconnect_failed', () => {
+      console.error('🔄 Reconnection failed after all attempts');
+    });
+
     setSocket(newSocket);
+
     return () => {
+      console.log('🔌 Cleaning up Socket.IO connection');
       newSocket.close();
     };
   }, []);
