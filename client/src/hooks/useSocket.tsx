@@ -27,7 +27,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   useEffect(() => {
     // Use local backend for now since production has database issues
     const serverUrl = process.env.NODE_ENV === 'production'
-      ? 'http://localhost:5001' // Temporarily use local backend
+      ? 'https://three-cards.onrender.com' // Production backend // Temporarily use local backend
       : (process.env.REACT_APP_SERVER_URL || 'http://localhost:5000');
 
     console.log('🔌 Connecting to Socket.IO server:', serverUrl);
