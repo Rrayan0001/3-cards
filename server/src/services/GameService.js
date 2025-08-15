@@ -1,6 +1,6 @@
 const { createDeck, shuffleDeck, calculateScore, getPowerCardEffect } = require('../../../shared/gameLogic');
 const { v4: uuidv4 } = require('uuid');
-const { supabase } = require('../db/supabaseClient');
+const supabase = require('../db/supabaseClient');
 
 class GameService {
   constructor() {
@@ -9,37 +9,100 @@ class GameService {
   }
 
   async createGame(hostId, hostUsername, roomCode) {
-    const gameId = uuidv4();
-    const deck = shuffleDeck(this.createGameDeck(1));
+    try {
+      console.log(`🎮 Creating game for ${hostUsername} with room code ${roomCode}`);
+      
+      const gameId = uuidv4();
+      const deck = this.createGameDeck(1);
 
-    const gameRow = {
-      game_id: gameId,
-      room_code: roomCode,
-      deck,
-      discard_pile: [],
-      current_turn: hostId,
-      status: 'waiting',
-      max_players: 6,
-      turn_time_limit: 45000
-    };
+      // Add timeout to the database operation
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database operation timed out')), 15000);
+      });
 
-    const { error: gameErr } = await supabase.from('games').insert(gameRow);
-    if (gameErr) throw new Error(gameErr.message);
+      const insertPromise = supabase.from('games').insert([
+        {
+          game_id: gameId,
+          room_code: roomCode,
+          deck: shuffleDeck(deck),
+          status: 'waiting',
+          current_turn: hostId
+        }
+      ]).select();
 
-    const { error: playerErr } = await supabase.from('game_players').insert({
-      game_id: gameId,
-      player_id: hostId,
-      username: hostUsername,
-      cards: ['hidden', 'hidden', 'hidden'],
-      score: 0,
-      is_active: true,
-      has_initial_peek: false
-    });
-    if (playerErr) throw new Error(playerErr.message);
+      const { data, error } = await Promise.race([insertPromise, timeoutPromise]);
 
-    const gameData = await this.loadGameAggregate(gameId);
-    this.activeGames.set(gameId, gameData);
-    return gameData;
+      if (error) {
+        console.error('❌ Supabase insert game error:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      const newGame = data[0];
+      console.log(`✅ Game created in database: ${gameId}`);
+
+      // Insert player with timeout
+      const playerInsertPromise = supabase.from('game_players').insert([
+        {
+          game_id: newGame.game_id,
+          player_id: hostId,
+          username: hostUsername,
+          cards: ['hidden', 'hidden', 'hidden'],
+          score: 0,
+          is_active: true,
+          has_initial_peek: false
+        }
+      ]);
+
+      const { error: playerError } = await Promise.race([playerInsertPromise, timeoutPromise]);
+      
+      if (playerError) {
+        console.error('❌ Supabase insert player error:', playerError);
+        throw new Error(`Player creation error: ${playerError.message}`);
+      }
+
+      console.log(`✅ Player ${hostUsername} added to game`);
+
+      // Fetch the full game state
+      const fetchPromise = supabase
+        .from('games')
+        .select('*, game_players(*)')
+        .eq('game_id', newGame.game_id)
+        .single();
+
+      const { data: fullGameData, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise]);
+
+      if (fetchError) {
+        console.error('❌ Supabase fetch game error:', fetchError);
+        throw new Error(`Game fetch error: ${fetchError.message}`);
+      }
+
+      // Map Supabase data to expected gameData structure
+      const gameData = {
+        gameId: fullGameData.game_id,
+        roomCode: fullGameData.room_code,
+        players: fullGameData.game_players.map(p => ({
+          id: p.player_id,
+          username: p.username,
+          cards: p.cards,
+          score: p.score,
+          isActive: p.is_active,
+          hasInitialPeek: p.has_initial_peek
+        })),
+        deck: fullGameData.deck,
+        discardPile: fullGameData.discard_pile,
+        currentTurn: fullGameData.current_turn,
+        status: fullGameData.status,
+        winner: fullGameData.winner
+      };
+
+      this.activeGames.set(gameId, gameData);
+      console.log(`🎯 Game ${gameId} successfully created and cached`);
+      return gameData;
+      
+    } catch (error) {
+      console.error('❌ Game creation failed:', error.message);
+      throw error;
+    }
   }
 
   async joinGame(gameId, playerId, playerUsername) {
