@@ -12,7 +12,10 @@ class SocketHandler {
   }
 
   handleConnection(socket) {
+    console.log(`🔌 New socket connection: ${socket.id}`);
+
     socket.on('join_as_player', async (data) => {
+      console.log(`👤 Player joining: ${data.username} (${data.userId || socket.id})`);
       const { username, userId } = data;
       this.connectedPlayers.set(socket.id, {
         userId: userId || socket.id,
@@ -23,20 +26,31 @@ class SocketHandler {
         playerId: userId || socket.id,
         username
       });
+      console.log(`✅ Player ${username} connected successfully`);
     });
 
     socket.on('create_game', async (data) => {
+      console.log(`🎮 Create game request:`, data);
       try {
         const { roomCode } = data;
         const player = this.connectedPlayers.get(socket.id);
+        console.log(`🔍 Looking for player with socket ${socket.id}:`, player);
+        
         if (!player) {
-          socket.emit('error', { message: 'Player not identified' });
+          console.error(`❌ Player not found for socket ${socket.id}`);
+          socket.emit('error', { message: 'Player not identified. Please refresh and try again.' });
           return;
         }
+        
+        console.log(`✅ Creating game for player ${player.username} with room code ${roomCode}`);
         const gameData = await this.gameService.createGame(player.userId, player.username, roomCode);
+        console.log(`🎯 Game created successfully:`, gameData);
+        
         socket.join(gameData.gameId);
         socket.emit('game_created', gameData);
+        console.log(`📤 game_created event sent to ${socket.id}`);
       } catch (error) {
+        console.error(`❌ Error creating game:`, error);
         socket.emit('error', { message: error.message });
       }
     });

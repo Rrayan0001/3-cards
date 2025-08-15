@@ -11,7 +11,7 @@ interface GameRoomProps {
 
 const GameRoom: React.FC<GameRoomProps> = ({ playerData, onReturnToMenu }) => {
   const { gameState, createGame, startGame } = useGame();
-  const { connected } = useSocket();
+  const { connected, socket } = useSocket();
   const [isCreatingGame, setIsCreatingGame] = useState(false);
 
   // Debug logging
@@ -32,11 +32,25 @@ const GameRoom: React.FC<GameRoomProps> = ({ playerData, onReturnToMenu }) => {
     if (!gameState.gameId && !isCreatingGame && connected) {
       console.log('🎮 Creating new game...');
       setIsCreatingGame(true);
+      
+      // Ensure player is identified with backend first
+      if (socket && playerData) {
+        console.log('👤 Re-identifying player with backend:', playerData);
+        socket.emit('join_as_player', { 
+          username: playerData.username, 
+          userId: playerData.id 
+        });
+      }
+      
       const newRoomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
       console.log('📝 Generated room code:', newRoomCode);
-      createGame(newRoomCode);
+      
+      // Small delay to ensure player identification is processed
+      setTimeout(() => {
+        createGame(newRoomCode);
+      }, 500);
     }
-  }, [gameState.gameId, createGame, isCreatingGame, connected]);
+  }, [gameState.gameId, createGame, isCreatingGame, connected, socket, playerData]);
 
   const handleStartGame = () => {
     if (gameState.players.length >= 2) {
