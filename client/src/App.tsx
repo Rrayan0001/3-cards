@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SocketProvider } from './hooks/useSocket';
-import { GameProvider } from './hooks/useGame';
+import { GameProvider, useGame } from './hooks/useGame';
 import MainMenu from './components/MainMenu';
 import GameRoom from './components/GameRoom';
 import './styles/App.css';
@@ -43,18 +43,40 @@ function App() {
     >
       <SocketProvider>
         <GameProvider>
-          {appState.screen === 'menu' ? (
-            <MainMenu
-              playerData={appState.playerData}
-              onPlayerJoin={handlePlayerJoin}
-              onGameStart={handleGameStart}
-            />
-          ) : (
-            <GameRoom playerData={appState.playerData!} onReturnToMenu={handleReturnToMenu} />
-          )}
+          <AppContent 
+            appState={appState}
+            onPlayerJoin={handlePlayerJoin}
+            onGameStart={handleGameStart}
+            onReturnToMenu={handleReturnToMenu}
+          />
         </GameProvider>
       </SocketProvider>
     </div>
+  );
+}
+
+function AppContent({ 
+  appState, 
+  onPlayerJoin, 
+  onGameStart, 
+  onReturnToMenu 
+}: { 
+  appState: AppState; 
+  onPlayerJoin: (playerData: { id: string; username: string }) => void;
+  onGameStart: () => void;
+  onReturnToMenu: () => void;
+}) {
+  const { joinGame } = useGame();
+
+  return appState.screen === 'menu' ? (
+    <MainMenu
+      playerData={appState.playerData}
+      onPlayerJoin={onPlayerJoin}
+      onGameStart={onGameStart}
+      joinGame={joinGame}
+    />
+  ) : (
+    <GameRoom playerData={appState.playerData!} onReturnToMenu={onReturnToMenu} />
   );
 }
 

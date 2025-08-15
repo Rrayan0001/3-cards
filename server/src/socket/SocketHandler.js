@@ -57,12 +57,16 @@ class SocketHandler {
 
     socket.on('join_game', async (data) => {
       try {
+        console.log('🎮 Join game request:', data);
         const { roomCode } = data;
         const player = this.connectedPlayers.get(socket.id);
         if (!player) {
+          console.error('❌ Player not found for socket', socket.id);
           socket.emit('error', { message: 'Player not identified' });
           return;
         }
+        console.log('✅ Joining game for player', player.username, 'with room code', roomCode);
+        
         const { supabase } = require('../db/supabaseClient');
         const { data: games, error } = await supabase
           .from('games')
@@ -73,13 +77,17 @@ class SocketHandler {
         if (error) throw new Error(error.message);
         const game = games && games[0];
         if (!game || game.status !== 'waiting') {
+          console.error('❌ Game not found or already started:', roomCode);
           socket.emit('error', { message: 'Game not found or already started' });
           return;
         }
+        console.log('✅ Found game:', game.game_id);
         const gameData = await this.gameService.joinGame(game.game_id, player.userId, player.username);
         socket.join(game.game_id);
         this.io.to(game.game_id).emit('player_joined', gameData);
+        console.log('✅ Player', player.username, 'successfully joined game', game.game_id);
       } catch (error) {
+        console.error('❌ Error joining game:', error);
         socket.emit('error', { message: error.message });
       }
     });

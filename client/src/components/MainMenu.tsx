@@ -4,11 +4,12 @@ import '../styles/MainMenu.css';
 
 interface MainMenuProps {
   playerData: { id: string; username: string } | null;
-  onPlayerJoin: ({ id, username }: { id: string; username: string }) => void;
+  onPlayerJoin: (playerData: { id: string; username: string }) => void;
   onGameStart: () => void;
+  joinGame: (roomCode: string) => void;
 }
 
-const MainMenu: React.FC<MainMenuProps> = ({ playerData, onPlayerJoin, onGameStart }) => {
+const MainMenu: React.FC<MainMenuProps> = ({ playerData, onPlayerJoin, onGameStart, joinGame }) => {
   const [username, setUsername] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -30,6 +31,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ playerData, onPlayerJoin, onGameSta
 
   const handleJoinGame = () => {
     if (roomCode.trim()) {
+      joinGame(roomCode.trim());
       onGameStart();
     }
   };

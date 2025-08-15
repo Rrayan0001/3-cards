@@ -212,7 +212,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   };
   const joinGame = (roomCode: string) => {
-    if (socket) socket.emit('join_game', { roomCode });
+    console.log('🎮 Emitting join_game event:', { roomCode });
+    if (socket) {
+      socket.emit('join_game', { roomCode });
+      console.log('📤 join_game event sent successfully');
+    } else {
+      console.error('❌ Cannot join game: socket not connected');
+    }
   };
   const startGame = () => {
     if (socket && gameState.gameId) socket.emit('start_game', { gameId: gameState.gameId });
