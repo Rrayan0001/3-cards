@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3-Cards Production Game Test</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: rgba(76, 175, 80, 0.8); }
+        .error { background: rgba(244, 67, 54, 0.8); }
+        .info { background: rgba(33, 150, 243, 0.8); }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 3-Cards Production Game Test</h1>
+
+    <div class="status info" id="status">Initializing...</div>
+
+    <div class="test-section">
+        <h3>Production Backend Test</h3>
+        <button onclick="testProductionGame()">Test Game Creation</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <h3>Test Log:</h3>
+    <div id="logs"></div>
+
+    <script>
+        const productionUrl = 'https://three-cards.onrender.com';
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log';
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            console.log(message);
+        }
+
+        function clearLogs() {
+            logsDiv.innerHTML = '';
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        async function testProductionGame() {
+            clearLogs();
+            updateStatus('Testing production game creation...', 'info');
+
+            try {
+                log('🎮 Testing production game creation flow...');
+                const socket = io(productionUrl, {
+                    transports: ['websocket', 'polling'],
+                    timeout: 20000
+                });
+
+                socket.on('connect', () => {
+                    log(`✅ Connected to production backend`);
+                    
+                    // Step 1: Join as player
+                    log('👤 Joining as player...');
+                    socket.emit('join_as_player', { 
+                        username: 'TestPlayer', 
+                        userId: 'test-user-' + Date.now() 
+                    });
+                });
+
+                socket.on('player_connected', (data) => {
+                    log(`✅ Player connected: ${JSON.stringify(data)}`);
+                    
+                    // Step 2: Create game
+                    const roomCode = 'TEST' + Math.random().toString(36).substr(2, 3).toUpperCase();
+                    log(`🎮 Creating game with room code: ${roomCode}`);
+                    socket.emit('create_game', { roomCode });
+                });
+
+                socket.on('game_created', (data) => {
+                    log(`✅ Game created successfully!`);
+                    log(`   Room Code: ${data.roomCode}`);
+                    log(`   Game ID: ${data.gameId}`);
+                    log(`   Players: ${data.players.length}`);
+                    log(`   Status: ${data.status}`);
+                    updateStatus('✅ Production game creation working!', 'success');
+                    
+                    // Cleanup
+                    setTimeout(() => {
+                        socket.disconnect();
+                        log('🔌 Test completed, disconnecting...');
+                    }, 2000);
+                });
+
+                socket.on('error', (error) => {
+                    log(`❌ Game creation error: ${error.message}`, 'error');
+                    updateStatus('❌ Game creation failed', 'error');
+                });
+
+                socket.on('disconnect', (reason) => {
+                    log(`❌ Disconnected: ${reason}`);
+                });
+
+                socket.on('connect_error', (error) => {
+                    log(`🚨 Connection error: ${error.message}`, 'error');
+                    updateStatus('❌ Connection failed', 'error');
+                });
+
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`, 'error');
+                updateStatus('❌ Test failed', 'error');
+            }
+        }
+
+        // Auto-test on page load
+        window.addEventListener('load', () => {
+            log('🚀 Page loaded, production test ready...');
+            updateStatus('Ready to test production backend', 'info');
+        });
+    </script>
+</body>
+</html>
