@@ -32,7 +32,7 @@ class SocketHandler {
     socket.on('create_game', async (data) => {
       console.log(`🎮 Create game request:`, data);
       try {
-        const { roomCode } = data;
+        const { roomCode, gameType = 'multiplayer' } = data;
         const player = this.connectedPlayers.get(socket.id);
         console.log(`🔍 Looking for player with socket ${socket.id}:`, player);
         
@@ -42,8 +42,15 @@ class SocketHandler {
           return;
         }
         
-        console.log(`✅ Creating game for player ${player.username} with room code ${roomCode}`);
-        const gameData = await this.gameService.createGame(player.userId, player.username, roomCode);
+        console.log(`✅ Creating ${gameType} game for player ${player.username} with room code ${roomCode}`);
+        
+        let gameData;
+        if (gameType === 'computer') {
+          gameData = await this.gameService.createComputerGame(player.userId, player.username, roomCode);
+        } else {
+          gameData = await this.gameService.createGame(player.userId, player.username, roomCode);
+        }
+        
         console.log(`🎯 Game created successfully:`, gameData);
         
         socket.join(gameData.gameId);
@@ -203,6 +210,9 @@ class SocketHandler {
           });
           const playerData = gameData.players.find((p) => p.id === player.userId);
           socket.emit('your_cards', { cards: playerData.cards });
+          
+          // Check if next turn is computer player
+          this.handleComputerTurn(gameId, gameData);
         }
       } catch (error) {
         socket.emit('error', { message: error.message });
@@ -223,6 +233,72 @@ class SocketHandler {
       }
     }
     return null;
+  }
+
+  async handleComputerTurn(gameId, gameData) {
+    const computerPlayer = gameData.players.find(p => p.isComputer);
+    if (!computerPlayer || gameData.currentTurn !== computerPlayer.id) {
+      return;
+    }
+
+    console.log(`🤖 Computer player ${computerPlayer.username} taking turn...`);
+    
+    // Add a small delay to make it feel more natural
+    setTimeout(async () => {
+      try {
+        const { ComputerPlayer: ComputerPlayerAI } = require('../ai/ComputerPlayer');
+        const ai = new ComputerPlayerAI(computerPlayer.username);
+        
+        // Get current game state
+        const currentGameData = this.gameService.activeGames.get(gameId);
+        if (!currentGameData) return;
+        
+        const decision = ai.makeDecision(currentGameData, computerPlayer.id);
+        console.log(`🤖 Computer decision:`, decision);
+        
+        if (!decision) {
+          // If no decision, just draw a card
+          await this.gameService.drawCard(gameId, computerPlayer.id);
+          this.io.to(gameId).emit('game_updated', {
+            currentTurn: currentGameData.currentTurn,
+            discardPile: currentGameData.discardPile,
+            remainingCards: currentGameData.deck.length
+          });
+          return;
+        }
+        
+        // Execute computer decision
+        if (decision.action === 'draw') {
+          await this.gameService.drawCard(gameId, computerPlayer.id);
+        } else if (decision.action === 'swap' || decision.action === 'discard') {
+          await this.gameService.makeMove(gameId, computerPlayer.id, decision.action, decision.cardIndex, currentGameData.drawnCard);
+        } else if (decision.action === 'power_card') {
+          await this.gameService.processPowerCard(gameId, computerPlayer.id, decision.powerCard, decision.targetData);
+        }
+        
+        // Update game state
+        const updatedGameData = this.gameService.activeGames.get(gameId);
+        if (updatedGameData) {
+          this.io.to(gameId).emit('game_updated', {
+            currentTurn: updatedGameData.currentTurn,
+            discardPile: updatedGameData.discardPile,
+            remainingCards: updatedGameData.deck.length
+          });
+          
+          // Check if game ended
+          if (updatedGameData.status === 'ended') {
+            const endResult = await this.gameService.endGame(gameId);
+            this.io.to(gameId).emit('game_ended', endResult);
+          } else {
+            // Check if next turn is also computer
+            this.handleComputerTurn(gameId, updatedGameData);
+          }
+        }
+        
+      } catch (error) {
+        console.error('❌ Computer turn error:', error);
+      }
+    }, 1500); // 1.5 second delay
   }
 }
 

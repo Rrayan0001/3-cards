@@ -7,9 +7,10 @@ interface MainMenuProps {
   onPlayerJoin: (playerData: { id: string; username: string }) => void;
   onGameStart: () => void;
   joinGame: (roomCode: string) => void;
+  createGame: (roomCode: string, gameType?: 'multiplayer' | 'computer') => void;
 }
 
-const MainMenu: React.FC<MainMenuProps> = ({ playerData, onPlayerJoin, onGameStart, joinGame }) => {
+const MainMenu: React.FC<MainMenuProps> = ({ playerData, onPlayerJoin, onGameStart, joinGame, createGame }) => {
   const [username, setUsername] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -25,7 +26,13 @@ const MainMenu: React.FC<MainMenuProps> = ({ playerData, onPlayerJoin, onGameSta
 
   const handleCreateGame = () => {
     const newRoomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-    setRoomCode(newRoomCode);
+    createGame(newRoomCode, 'multiplayer');
+    onGameStart();
+  };
+
+  const handleCreateComputerGame = () => {
+    const newRoomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+    createGame(newRoomCode, 'computer');
     onGameStart();
   };
 
@@ -82,9 +89,17 @@ const MainMenu: React.FC<MainMenuProps> = ({ playerData, onPlayerJoin, onGameSta
 
       <div className="menu-options">
         <div className="game-option">
-          <h3>Create New Game</h3>
+          <h3>Play vs Computer</h3>
+          <p>Challenge the AI in a 1v1 game</p>
+          <button onClick={handleCreateComputerGame} className="primary-button">
+            🤖 Play vs Computer
+          </button>
+        </div>
+
+        <div className="game-option">
+          <h3>Create Multiplayer Game</h3>
           <p>Start a new game and invite friends</p>
-          <button onClick={handleCreateGame} className="primary-button">
+          <button onClick={handleCreateGame} className="secondary-button">
             Create Game
           </button>
         </div>

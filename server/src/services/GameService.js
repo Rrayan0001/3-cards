@@ -1,6 +1,7 @@
 const { createDeck, shuffleDeck, calculateScore, getPowerCardEffect } = require('../../../shared/gameLogic');
 const { v4: uuidv4 } = require('uuid');
 const supabase = require('../db/supabaseClient');
+const { ComputerPlayer } = require('../ai/ComputerPlayer');
 
 class GameService {
   constructor() {
@@ -126,6 +127,165 @@ class GameService {
 
       this.activeGames.set(gameId, gameData);
       console.log(`🎯 Game ${gameId} created locally (database unavailable)`);
+      return gameData;
+    }
+  }
+
+  async createComputerGame(hostId, hostUsername, roomCode) {
+    try {
+      console.log(`🤖 Creating computer game for ${hostUsername} with room code ${roomCode}`);
+      
+      const gameId = uuidv4();
+      const deck = this.createGameDeck(1);
+
+      // Add timeout to the database operation
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database operation timed out')), 15000);
+      });
+
+      const insertPromise = supabase.from('games').insert([
+        {
+          game_id: gameId,
+          room_code: roomCode,
+          deck: shuffleDeck(deck),
+          status: 'waiting',
+          current_turn: hostId
+        }
+      ]).select();
+
+      const { data, error } = await Promise.race([insertPromise, timeoutPromise]);
+
+      if (error) {
+        console.error('❌ Supabase insert game error:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      const newGame = data[0];
+      console.log(`✅ Computer game created in database: ${gameId}`);
+
+      // Insert human player
+      const playerInsertPromise = supabase.from('game_players').insert([
+        {
+          game_id: newGame.game_id,
+          player_id: hostId,
+          username: hostUsername,
+          cards: ['hidden', 'hidden', 'hidden'],
+          score: 0,
+          is_active: true,
+          has_initial_peek: false
+        }
+      ]);
+
+      const { error: playerError } = await Promise.race([playerInsertPromise, timeoutPromise]);
+      
+      if (playerError) {
+        console.error('❌ Supabase insert player error:', playerError);
+        throw new Error(`Player creation error: ${playerError.message}`);
+      }
+
+      // Insert computer player
+      const computerPlayer = new ComputerPlayer('Computer');
+      const computerData = computerPlayer.getPlayerData();
+      
+      const computerInsertPromise = supabase.from('game_players').insert([
+        {
+          game_id: newGame.game_id,
+          player_id: computerData.id,
+          username: computerData.username,
+          cards: ['hidden', 'hidden', 'hidden'],
+          score: 0,
+          is_active: true,
+          has_initial_peek: false
+        }
+      ]);
+
+      const { error: computerError } = await Promise.race([computerInsertPromise, timeoutPromise]);
+      
+      if (computerError) {
+        console.error('❌ Supabase insert computer player error:', computerError);
+        throw new Error(`Computer player creation error: ${computerError.message}`);
+      }
+
+      console.log(`✅ Computer player added to game`);
+
+      // Fetch the full game state
+      const fetchPromise = supabase
+        .from('games')
+        .select('*, game_players(*)')
+        .eq('game_id', newGame.game_id)
+        .single();
+
+      const { data: fullGameData, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise]);
+
+      if (fetchError) {
+        console.error('❌ Supabase fetch game error:', fetchError);
+        throw new Error(`Game fetch error: ${fetchError.message}`);
+      }
+
+      // Map Supabase data to expected gameData structure
+      const gameData = {
+        gameId: fullGameData.game_id,
+        roomCode: fullGameData.room_code,
+        players: fullGameData.game_players.map(p => ({
+          id: p.player_id,
+          username: p.username,
+          cards: p.cards,
+          score: p.score,
+          isActive: p.is_active,
+          hasInitialPeek: p.has_initial_peek,
+          isComputer: p.player_id === computerData.id
+        })),
+        deck: fullGameData.deck,
+        discardPile: fullGameData.discard_pile,
+        currentTurn: fullGameData.current_turn,
+        status: fullGameData.status,
+        winner: fullGameData.winner
+      };
+
+      this.activeGames.set(gameId, gameData);
+      console.log(`🎯 Computer game ${gameId} successfully created and cached`);
+      return gameData;
+      
+    } catch (error) {
+      console.error('❌ Database computer game creation failed, using local fallback:', error.message);
+      
+      // Fallback: Create computer game locally without database
+      const gameId = uuidv4();
+      const deck = shuffleDeck(this.createGameDeck(1));
+      const computerPlayer = new ComputerPlayer('Computer');
+      const computerData = computerPlayer.getPlayerData();
+      
+      const gameData = {
+        gameId: gameId,
+        roomCode: roomCode,
+        players: [
+          {
+            id: hostId,
+            username: hostUsername,
+            cards: ['hidden', 'hidden', 'hidden'],
+            score: 0,
+            isActive: true,
+            hasInitialPeek: false
+          },
+          {
+            id: computerData.id,
+            username: computerData.username,
+            cards: ['hidden', 'hidden', 'hidden'],
+            score: 0,
+            isActive: true,
+            hasInitialPeek: false,
+            isComputer: true
+          }
+        ],
+        deck: deck,
+        discardPile: [],
+        currentTurn: hostId,
+        status: 'waiting',
+        winner: null
+      };
+
+      this.activeGames.set(gameId, gameData);
+      console.log(`🎯 Computer game ${gameId} created locally (database unavailable)`);
       return gameData;
     }
   }

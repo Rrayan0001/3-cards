@@ -130,53 +130,47 @@
                     log(`✅ Player connected: ${JSON.stringify(data)}`);
 
                     // Step 2: Create game
-                    const roomCode = 'TEST' + Math.random().toString(36).substr(2, 3).toUpperCase();
-                    log(`🎮 Creating game with room code: ${roomCode}`);
-                    socket.emit('create_game', { roomCode });
+                    log('🎮 Creating game...');
+                    socket.emit('create_game', {
+                        roomCode: 'TEST' + Math.random().toString(36).substr(2, 4).toUpperCase()
+                    });
                 });
 
                 socket.on('game_created', (data) => {
-                    log(`✅ Game created successfully!`);
-                    log(`   Room Code: ${data.roomCode}`);
-                    log(`   Game ID: ${data.gameId}`);
-                    log(`   Players: ${data.players.length}`);
-                    log(`   Status: ${data.status}`);
+                    log(`✅ Game created successfully: ${JSON.stringify(data, null, 2)}`);
                     updateStatus('✅ Production game creation working!', 'success');
-
-                    // Cleanup
-                    setTimeout(() => {
-                        socket.disconnect();
-                        log('🔌 Test completed, disconnecting...');
-                    }, 2000);
+                    socket.disconnect();
                 });
 
                 socket.on('error', (error) => {
-                    log(`❌ Game creation error: ${error.message}`, 'error');
-                    updateStatus('❌ Game creation failed', 'error');
-                });
-
-                socket.on('disconnect', (reason) => {
-                    log(`❌ Disconnected: ${reason}`);
+                    log(`❌ Error: ${JSON.stringify(error)}`, 'error');
+                    updateStatus('❌ Production game creation failed', 'error');
+                    socket.disconnect();
                 });
 
                 socket.on('connect_error', (error) => {
-                    log(`🚨 Connection error: ${error.message}`, 'error');
-                    updateStatus('❌ Connection failed', 'error');
+                    log(`❌ Connection error: ${error.message}`, 'error');
+                    updateStatus('❌ Cannot connect to production backend', 'error');
                 });
 
+                // Timeout after 30 seconds
+                setTimeout(() => {
+                    if (socket.connected) {
+                        log('⏰ Test timeout - disconnecting', 'error');
+                        socket.disconnect();
+                    }
+                }, 30000);
+
             } catch (error) {
-                log(`❌ Test failed: ${error.message}`, 'error');
+                log(`❌ Test error: ${error.message}`, 'error');
                 updateStatus('❌ Test failed', 'error');
             }
         }
 
-        // Auto-test on page load
-        window.addEventListener('load', () => {
-            log('🚀 Page loaded, testing production backend...');
-            setTimeout(() => {
-                testProductionBackend();
-            }, 1000);
-        });
+        // Auto-run tests on page load
+        window.onload = function() {
+            setTimeout(testProductionBackend, 1000);
+        };
     </script>
 </body>
 </html>

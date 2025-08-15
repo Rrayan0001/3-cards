@@ -66,7 +66,7 @@ function AppContent({
   onGameStart: () => void;
   onReturnToMenu: () => void;
 }) {
-  const { joinGame } = useGame();
+  const { joinGame, createGame } = useGame();
 
   return appState.screen === 'menu' ? (
     <MainMenu
@@ -74,6 +74,7 @@ function AppContent({
       onPlayerJoin={onPlayerJoin}
       onGameStart={onGameStart}
       joinGame={joinGame}
+      createGame={createGame}
     />
   ) : (
     <GameRoom playerData={appState.playerData!} onReturnToMenu={onReturnToMenu} />

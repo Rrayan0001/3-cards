@@ -8,6 +8,7 @@ interface Player {
   score: number;
   isActive: boolean;
   hasInitialPeek: boolean;
+  isComputer?: boolean;
 }
 
 interface GameState {
@@ -205,10 +206,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     };
   }, [socket]);
 
-  const createGame = (roomCode: string) => {
-    console.log('🎮 Emitting create_game event:', { roomCode });
+  const createGame = (roomCode: string, gameType: 'multiplayer' | 'computer' = 'multiplayer') => {
+    console.log('🎮 Emitting create_game event:', { roomCode, gameType });
     if (socket) {
-      socket.emit('create_game', { roomCode });
+      socket.emit('create_game', { roomCode, gameType });
       console.log('📤 create_game event sent successfully');
     } else {
       console.error('❌ Cannot create game: socket not connected');

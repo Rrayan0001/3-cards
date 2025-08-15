@@ -25,16 +25,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    // Determine the correct server URL based on environment
-    let serverUrl: string;
-    
-    if (process.env.NODE_ENV === 'production') {
-      // In production, always use the production backend
-      serverUrl = 'https://three-cards.onrender.com';
-    } else {
-      // In development, use local backend
-      serverUrl = process.env.REACT_APP_SERVER_URL || 'http://localhost:5001';
-    }
+    // Always use production backend for all environments
+    const serverUrl = 'https://three-cards.onrender.com';
 
     console.log('🔌 Connecting to Socket.IO server:', serverUrl);
     console.log('🌍 Environment:', process.env.NODE_ENV);
