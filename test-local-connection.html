@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3-Cards Local Connection Test</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: rgba(76, 175, 80, 0.8); }
+        .error { background: rgba(244, 67, 54, 0.8); }
+        .info { background: rgba(33, 150, 243, 0.8); }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 3-Cards Local Connection Test</h1>
+
+    <div class="status info" id="status">Initializing...</div>
+
+    <div class="test-section">
+        <h3>Local Backend Test</h3>
+        <button onclick="testLocalBackend()">Test Local Backend</button>
+        <button onclick="testLocalFrontend()">Test Local Frontend</button>
+        <button onclick="testGameCreation()">Test Game Creation</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <h3>Connection Log:</h3>
+    <div id="logs"></div>
+
+    <script>
+        const localBackendUrl = 'http://localhost:5001';
+        const localFrontendUrl = 'http://localhost:3002';
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log';
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            console.log(message);
+        }
+
+        function clearLogs() {
+            logsDiv.innerHTML = '';
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        async function testLocalBackend() {
+            clearLogs();
+            updateStatus('Testing local backend...', 'info');
+
+            // Test HTTP endpoint
+            try {
+                log('🔍 Testing local HTTP health endpoint...');
+                const response = await fetch(`${localBackendUrl}/health`);
+                const data = await response.json();
+                log(`✅ Local HTTP Health Check: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                log(`❌ Local HTTP Health Check Failed: ${error.message}`, 'error');
+            }
+
+            // Test WebSocket connection
+            try {
+                log('🔌 Testing local WebSocket connection...');
+                const socket = io(localBackendUrl, {
+                    transports: ['websocket', 'polling'],
+                    timeout: 10000
+                });
+
+                socket.on('connect', () => {
+                    log(`✅ Local WebSocket Connected! Socket ID: ${socket.id}`);
+                    updateStatus('✅ Connected to local backend!', 'success');
+                });
+
+                socket.on('disconnect', (reason) => {
+                    log(`❌ Local WebSocket Disconnected: ${reason}`);
+                    updateStatus('❌ Disconnected from local backend', 'error');
+                });
+
+                socket.on('connect_error', (error) => {
+                    log(`🚨 Local WebSocket Connection Error: ${error.message}`);
+                    updateStatus('❌ Local connection failed', 'error');
+                });
+
+                // Cleanup after 10 seconds
+                setTimeout(() => {
+                    if (socket.connected) {
+                        socket.disconnect();
+                        log('🔌 Local test completed, disconnecting...');
+                    }
+                }, 10000);
+
+            } catch (error) {
+                log(`❌ Local WebSocket Test Failed: ${error.message}`, 'error');
+                updateStatus('❌ Local WebSocket test failed', 'error');
+            }
+        }
+
+        async function testLocalFrontend() {
+            clearLogs();
+            updateStatus('Testing local frontend...', 'info');
+
+            try {
+                log('🌐 Testing local frontend accessibility...');
+                const response = await fetch(localFrontendUrl);
+                if (response.ok) {
+                    log(`✅ Local frontend is accessible (Status: ${response.status})`);
+                    updateStatus('✅ Local frontend is working!', 'success');
+                } else {
+                    log(`❌ Local frontend returned status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Local frontend test failed: ${error.message}`, 'error');
+                updateStatus('❌ Local frontend not accessible', 'error');
+            }
+        }
+
+        async function testGameCreation() {
+            clearLogs();
+            updateStatus('Testing game creation...', 'info');
+
+            try {
+                log('🎮 Testing game creation flow...');
+                const socket = io(localBackendUrl, {
+                    transports: ['websocket', 'polling'],
+                    timeout: 10000
+                });
+
+                socket.on('connect', () => {
+                    log(`✅ Connected to backend for game creation test`);
+                    
+                    // Step 1: Join as player
+                    log('👤 Joining as player...');
+                    socket.emit('join_as_player', { 
+                        username: 'TestPlayer', 
+                        userId: 'test-user-123' 
+                    });
+                });
+
+                socket.on('player_connected', (data) => {
+                    log(`✅ Player connected: ${JSON.stringify(data)}`);
+                    
+                    // Step 2: Create game
+                    const roomCode = 'TEST123';
+                    log(`🎮 Creating game with room code: ${roomCode}`);
+                    socket.emit('create_game', { roomCode });
+                });
+
+                socket.on('game_created', (data) => {
+                    log(`✅ Game created successfully: ${JSON.stringify(data)}`);
+                    updateStatus('✅ Game creation test passed!', 'success');
+                    
+                    // Cleanup
+                    setTimeout(() => {
+                        socket.disconnect();
+                        log('🔌 Game creation test completed');
+                    }, 2000);
+                });
+
+                socket.on('error', (error) => {
+                    log(`❌ Game creation error: ${error.message}`, 'error');
+                    updateStatus('❌ Game creation failed', 'error');
+                });
+
+                socket.on('disconnect', (reason) => {
+                    log(`❌ Disconnected during game creation: ${reason}`);
+                });
+
+            } catch (error) {
+                log(`❌ Game creation test failed: ${error.message}`, 'error');
+                updateStatus('❌ Game creation test failed', 'error');
+            }
+        }
+
+        // Auto-test on page load
+        window.addEventListener('load', () => {
+            log('🚀 Page loaded, starting local connection tests...');
+            setTimeout(() => {
+                testLocalBackend();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
