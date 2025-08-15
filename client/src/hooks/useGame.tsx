@@ -177,15 +177,18 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     });
     
     socket.on('error', (error) => {
-      console.error('❌ Received error event:', error); // Added debug
+      console.error('❌ Received error event:', error);
       
       // Handle specific database timeout errors
       if (error.message && error.message.includes('timed out')) {
         // eslint-disable-next-line no-alert
-        alert('⚠️ Server is experiencing high load. Please try again in a few moments or use the local version for now.');
+        alert('⚠️ Server is experiencing high load. Please try again in a few moments. The game will automatically retry.');
+      } else if (error.message && error.message.includes('Game not found')) {
+        // eslint-disable-next-line no-alert
+        alert('❌ Game not found. Please check the room code and try again.');
       } else {
         // eslint-disable-next-line no-alert
-        alert(error.message);
+        alert(`Error: ${error.message}`);
       }
     });
     
