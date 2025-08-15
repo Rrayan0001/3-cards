@@ -138,18 +138,52 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
   useEffect(() => {
     if (!socket) return;
-    socket.on('game_created', (data) => dispatch({ type: 'GAME_CREATED', payload: data }));
-    socket.on('player_joined', (data) => dispatch({ type: 'PLAYER_JOINED', payload: data }));
-    socket.on('game_started', (data) => dispatch({ type: 'GAME_STARTED', payload: data }));
-    socket.on('your_cards', (data) => dispatch({ type: 'YOUR_CARDS', payload: data }));
-    socket.on('card_drawn', (data) => dispatch({ type: 'CARD_DRAWN', payload: data }));
-    socket.on('game_updated', (data) => dispatch({ type: 'GAME_UPDATED', payload: data }));
-    socket.on('game_ended', (data) => dispatch({ type: 'GAME_ENDED', payload: data }));
+    
+    console.log('🎯 Setting up Socket.IO event listeners...');
+    
+    socket.on('game_created', (data) => {
+      console.log('✅ Received game_created event:', data);
+      dispatch({ type: 'GAME_CREATED', payload: data });
+    });
+    
+    socket.on('player_joined', (data) => {
+      console.log('👥 Received player_joined event:', data);
+      dispatch({ type: 'PLAYER_JOINED', payload: data });
+    });
+    
+    socket.on('game_started', (data) => {
+      console.log('🚀 Received game_started event:', data);
+      dispatch({ type: 'GAME_STARTED', payload: data });
+    });
+    
+    socket.on('your_cards', (data) => {
+      console.log('🃏 Received your_cards event:', data);
+      dispatch({ type: 'YOUR_CARDS', payload: data });
+    });
+    
+    socket.on('card_drawn', (data) => {
+      console.log('🎴 Received card_drawn event:', data);
+      dispatch({ type: 'CARD_DRAWN', payload: data });
+    });
+    
+    socket.on('game_updated', (data) => {
+      console.log('🔄 Received game_updated event:', data);
+      dispatch({ type: 'GAME_UPDATED', payload: data });
+    });
+    
+    socket.on('game_ended', (data) => {
+      console.log('🏁 Received game_ended event:', data);
+      dispatch({ type: 'GAME_ENDED', payload: data });
+    });
+    
     socket.on('error', (error) => {
+      console.error('❌ Received error event:', error);
       // eslint-disable-next-line no-alert
       alert(error.message);
     });
+    
     return () => {
+      console.log('🧹 Cleaning up Socket.IO event listeners...');
       socket.off('game_created');
       socket.off('player_joined');
       socket.off('game_started');
@@ -162,7 +196,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   }, [socket]);
 
   const createGame = (roomCode: string) => {
-    if (socket) socket.emit('create_game', { roomCode });
+    console.log('🎮 Emitting create_game event:', { roomCode });
+    if (socket) {
+      socket.emit('create_game', { roomCode });
+      console.log('📤 create_game event sent successfully');
+    } else {
+      console.error('❌ Cannot create game: socket not connected');
+    }
   };
   const joinGame = (roomCode: string) => {
     if (socket) socket.emit('join_game', { roomCode });

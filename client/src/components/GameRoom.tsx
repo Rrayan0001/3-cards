@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useGame } from '../hooks/useGame';
+import { useSocket } from '../hooks/useSocket';
 import PlayerArea from './PlayerArea';
 import '../styles/GameRoom.css';
 
@@ -10,15 +11,32 @@ interface GameRoomProps {
 
 const GameRoom: React.FC<GameRoomProps> = ({ playerData, onReturnToMenu }) => {
   const { gameState, createGame, startGame } = useGame();
+  const { connected } = useSocket();
   const [isCreatingGame, setIsCreatingGame] = useState(false);
 
+  // Debug logging
   useEffect(() => {
-    if (!gameState.gameId && !isCreatingGame) {
+    console.log('🔍 GameRoom Debug:', {
+      connected,
+      gameState: {
+        gameId: gameState.gameId,
+        roomCode: gameState.roomCode,
+        players: gameState.players.length,
+        status: gameState.status
+      },
+      isCreatingGame
+    });
+  }, [connected, gameState, isCreatingGame]);
+
+  useEffect(() => {
+    if (!gameState.gameId && !isCreatingGame && connected) {
+      console.log('🎮 Creating new game...');
       setIsCreatingGame(true);
       const newRoomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+      console.log('📝 Generated room code:', newRoomCode);
       createGame(newRoomCode);
     }
-  }, [gameState.gameId, createGame, isCreatingGame]);
+  }, [gameState.gameId, createGame, isCreatingGame, connected]);
 
   const handleStartGame = () => {
     if (gameState.players.length >= 2) {
@@ -37,12 +55,26 @@ const GameRoom: React.FC<GameRoomProps> = ({ playerData, onReturnToMenu }) => {
           <h2>Game Room</h2>
           <div className="room-code">
             <span>
-              Room Code: <strong>{gameState.roomCode}</strong>
+              Room Code: <strong>{gameState.roomCode || 'Generating...'}</strong>
             </span>
-            <button onClick={() => navigator.clipboard.writeText(gameState.roomCode || '')} className="copy-button">
+            <button 
+              onClick={() => {
+                if (gameState.roomCode) {
+                  navigator.clipboard.writeText(gameState.roomCode);
+                  console.log('📋 Copied room code:', gameState.roomCode);
+                }
+              }} 
+              className="copy-button"
+              disabled={!gameState.roomCode}
+            >
               📋 Copy
             </button>
           </div>
+          {!connected && (
+            <div style={{ color: 'red', fontSize: '12px', marginTop: '5px' }}>
+              ⚠️ Not connected to server
+            </div>
+          )}
         </div>
 
         <div className="players-waiting">
@@ -54,6 +86,11 @@ const GameRoom: React.FC<GameRoomProps> = ({ playerData, onReturnToMenu }) => {
                 {index === 0 && <span className="host-badge">Host</span>}
               </div>
             ))}
+            {gameState.players.length === 0 && (
+              <div className="waiting-player">
+                <span className="player-name">No players yet...</span>
+              </div>
+            )}
           </div>
         </div>
 
