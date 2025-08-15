@@ -25,14 +25,13 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    // Use local backend for now since production has database issues
+    // Use production backend with fallback handling
     const serverUrl = process.env.NODE_ENV === 'production'
-      ? 'https://three-cards.onrender.com' // Production backend // Temporarily use local backend
+      ? 'https://three-cards.onrender.com' // Production backend
       : (process.env.REACT_APP_SERVER_URL || 'http://localhost:5000');
 
     console.log('🔌 Connecting to Socket.IO server:', serverUrl);
     console.log('🌍 Environment:', process.env.NODE_ENV);
-    console.log('⚠️  Note: Using local backend due to production database issues');
 
     const newSocket = io(serverUrl, {
       transports: ['websocket', 'polling'],

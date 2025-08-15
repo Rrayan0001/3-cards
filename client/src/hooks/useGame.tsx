@@ -177,9 +177,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     });
     
     socket.on('error', (error) => {
-      console.error('❌ Received error event:', error);
-      // eslint-disable-next-line no-alert
-      alert(error.message);
+      console.error('❌ Received error event:', error); // Added debug
+      
+      // Handle specific database timeout errors
+      if (error.message && error.message.includes('timed out')) {
+        // eslint-disable-next-line no-alert
+        alert('⚠️ Server is experiencing high load. Please try again in a few moments or use the local version for now.');
+      } else {
+        // eslint-disable-next-line no-alert
+        alert(error.message);
+      }
     });
     
     return () => {
