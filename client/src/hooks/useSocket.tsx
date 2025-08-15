@@ -25,10 +25,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    // Use production backend with fallback handling
+    // Use production backend for production builds, local for development
     const serverUrl = process.env.NODE_ENV === 'production'
-      ? 'http://localhost:5001' // Using local backend // Production backend
-      : (process.env.REACT_APP_SERVER_URL || 'http://localhost:5000');
+      ? 'https://three-cards.onrender.com' // Production backend
+      : (process.env.REACT_APP_SERVER_URL || 'http://localhost:5001');
 
     console.log('🔌 Connecting to Socket.IO server:', serverUrl);
     console.log('🌍 Environment:', process.env.NODE_ENV);
